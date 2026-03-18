@@ -35,15 +35,15 @@
 \newtheorem{hypothesis}{Hypothesis}
 \newtheorem{finding}{Finding}
 
-\title{Alignment Stability Under Progressive Data Corruption\\in Fine-Tuned Language Models}
+\title{Progressive Alignment Degradation in Fine-Tuned Language Models Under Data Corruption}
 
 \author{
     \IEEEauthorblockN{Akshay Sasi}
     \IEEEauthorblockA{
-        Independent Researcher\\
+        AI Researcher\\
         India\\
         akshaysasi12.knr@gmail.com\\
-        ORCID: XXXX-XXXX-XXXX-XXXX
+        ORCID: 0009-0009-3708-554X
     }
 }
 
@@ -53,7 +53,7 @@
 
 % ==================================================================
 \begin{abstract}
-We present the first systematic study of how alignment degrades progressively in fine-tuned language models. We vary data corruption from 0\% to 100\% across four corruption types (toxic, misinformation, semantic noise, slang compression) during LoRA fine-tuning of \model{} (355M parameters) and evaluate the resulting degradation along four dimensions: behavioral safety, language modeling capability, distributional drift via KL divergence, and representation geometry via CKA similarity. Across 18 model variants, we observe that alignment degradation is strongly non-linear, with deceptive stability plateaus that mask ongoing internal damage. Structured corruption (toxic, misinformation) causes far greater damage than unstructured noise, and KL divergence acts as an early warning signal, increasing up to $96\times$ while alignment scores drop only 23\%. Recovery through clean fine-tuning partially restores behavior but produces a distinct representational ``third state'' rather than restoring the original model. These results point to the need for continuous distributional monitoring during fine-tuning in place of binary safety evaluations.
+We present a systematic study of how alignment degrades progressively in fine-tuned language models. We vary data corruption from 0\% to 100\% across four corruption types (toxic, misinformation, semantic noise, slang compression) during LoRA fine-tuning of \model{} (355M parameters) and evaluate the resulting degradation along four dimensions: behavioral safety, language modeling capability, distributional drift via KL divergence, and representation geometry via CKA similarity. Across 18 model variants, we observe that alignment degradation is strongly non-linear, with deceptive stability plateaus that mask ongoing internal damage. Structured corruption (toxic, misinformation) causes far greater damage than unstructured noise, and KL divergence acts as an early warning signal, increasing up to $96\times$ while alignment scores drop only 23\%. Recovery through clean fine-tuning partially restores behavior but produces a distinct representational ``third state'' rather than restoring the original model. These results point to the need for continuous distributional monitoring during fine-tuning in place of binary safety evaluations.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -76,6 +76,8 @@ We address this gap with the first systematic study of progressive alignment cor
     \item Empirical evidence that KL divergence picks up corruption effects before behavioral degradation becomes visible, detecting shifts up to $96\times$ more sensitively than alignment scores.
     \item A recovery study showing that clean-data re-fine-tuning does not restore the original model but instead produces a distinct representational regime.
 \end{enumerate}
+
+Unlike prior work that studies alignment failure at isolated corruption levels, our work provides a continuous, multi-dimensional view of alignment degradation and reveals previously unobserved decoupling between behavioral safety and internal model drift.
 
 % ==================================================================
 \section{Related Work}
@@ -182,7 +184,13 @@ For toxic-corrupted models at $\rho \in \{0.50, 0.75, 1.0\}$, we perform recover
 
 \subsection{Statistical Analysis}
 
-All stochastic metrics include bootstrap 95\% confidence intervals computed from 1,000 resamples. Non-linearity is quantified using the coefficient of variation (CV) of discrete derivatives: $\text{CV} = \sigma(\Delta S / \Delta \rho) / |\mu(\Delta S / \Delta \rho)|$, where CV $> 0.5$ indicates significant non-linearity.
+All stochastic metrics are reported with bootstrap 95\% confidence intervals computed from 1{,}000 resamples over the evaluation prompt set. For each metric, scores are first computed per prompt and then aggregated; bootstrap resampling is applied at the prompt level.
+
+Non-linearity is quantified using the coefficient of variation (CV) of discrete derivatives:
+\[
+\text{CV} = \frac{\sigma(\Delta S / \Delta \rho)}{|\mu(\Delta S / \Delta \rho)|},
+\]
+where $\Delta S / \Delta \rho$ denotes the change in the metric between consecutive corruption levels. A threshold of $\text{CV} > 0.5$ is used to indicate significant non-linearity.
 
 % ==================================================================
 \section{Experimental Setup}
@@ -248,7 +256,7 @@ Table~\ref{tab:recovery} compares metrics before corruption, after corruption, a
 Recovery fine-tuning partially restores behavioral alignment but produces a novel ``third state'': recovered models have lower CKA similarity to baseline (0.764 to 0.775) than the corrupted models they came from (0.807 to 0.923), combined with anomalously low perplexity (12.5 to 12.7 vs.\ baseline 28.9) and persistent high drift ($D_{KL}$: 5.1 to 5.4).
 \end{finding}
 
-This finding breaks down into three parts. \textbf{(i)} Recovery successfully brings toxicity down from 0.907 to 0.029, yet CKA similarity to baseline actually \emph{decreases} after recovery - the model has learned to produce safe outputs through a fundamentally different internal computation path. \textbf{(ii)} All three recovered models show perplexity around 12.5 to 12.7, well below the baseline's 28.9, suggesting overfitting to clean data patterns during recovery. \textbf{(iii)} KL divergence stays at 5.1 to 5.4 after recovery, pointing to a permanently shifted output distribution despite behavioral normalization.
+This finding can be decomposed into three observations. \textbf{(i)} Recovery successfully brings toxicity down from 0.907 to 0.029, yet CKA similarity to baseline actually \emph{decreases} after recovery - the model has learned to produce safe outputs through a fundamentally different internal computation path. \textbf{(ii)} All three recovered models show perplexity around 12.5 to 12.7, well below the baseline's 28.9, suggesting overfitting to clean data patterns during recovery. \textbf{(iii)} KL divergence stays at 5.1 to 5.4 after recovery, pointing to a permanently shifted output distribution despite behavioral normalization.
 
 \begin{table}[htbp]
     \centering
@@ -399,7 +407,7 @@ Based on our findings:
 \section{Limitations}
 \label{sec:limitations}
 
-Our experiments use a single model (\model{}, 355M parameters) and a single random seed due to computational constraints. While prior work suggests degradation patterns transfer across scales~\cite{mazeika2025scaling}, validation on larger models is needed. Toxic corruption uses 6 corruption ratios while other types use 4, creating some asymmetry in resolution. LoRA fine-tuning may behave differently from full-parameter fine-tuning, as the low-rank constraint could either buffer or amplify certain corruption effects. Our corruption types, while diverse, may not cover all real-world contamination scenarios. Finally, the base model lacks the explicit safety training of frontier models, so our ``alignment'' baseline reflects instruction-following tendencies rather than RLHF-trained safety guardrails. Future work should evaluate larger models with multiple seeds to verify the robustness of these findings.
+Our experiments use a single model (\model{}, 355M parameters) and a single random seed due to computational constraints. While prior work suggests degradation patterns transfer across scales~\cite{mazeika2025scaling}, validation on larger models is needed. We do not evaluate RLHF-aligned frontier models, which may exhibit different robustness properties under corruption. Toxic corruption uses 6 corruption ratios while other types use 4, creating some asymmetry in resolution. LoRA fine-tuning may behave differently from full-parameter fine-tuning, as the low-rank constraint could either buffer or amplify certain corruption effects. Our corruption types, while diverse, may not cover all real-world contamination scenarios. Finally, the base model lacks the explicit safety training of frontier models, so our ``alignment'' baseline reflects instruction-following tendencies rather than RLHF-trained safety guardrails. Future work should evaluate larger models with multiple seeds to verify the robustness of these findings.
 
 % ==================================================================
 \section{Conclusion}

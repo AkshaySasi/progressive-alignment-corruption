@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">Alignment Stability Under Progressive Data Corruption</h1>
+  <h1 align="center">Progressive Alignment Degradation in Fine-Tuned Language Models Under Data Corruption</h1>
   <p align="center">
     <em>How does safety alignment break when fine-tuning data gets progressively corrupted?</em>
   </p>
@@ -14,7 +14,7 @@
 
 ---
 
-We present the first systematic study of **progressive alignment degradation** in fine-tuned language models. Rather than treating alignment as binary (safe or broken), we vary data corruption from 0% to 100% and track exactly how and when safety breaks down.
+We present a systematic study of **progressive alignment degradation** in fine-tuned language models. Rather than treating alignment as binary (safe or broken), we vary data corruption from 0% to 100% and track exactly how and when safety breaks down.
 
 <p align="center">
   <img src="outputs/plots/composite_dashboard.png" width="90%" alt="Composite Dashboard">
@@ -233,8 +233,8 @@ Total pipeline time: ~12 hours on a single GPU.
 If you use this code or findings in your research, please cite:
 
 ```bibtex
-@article{sasi2026alignment,
-  title={Alignment Stability Under Progressive Data Corruption in Fine-Tuned Language Models},
+@article{sasi2026progressive,
+  title={Progressive Alignment Degradation in Fine-Tuned Language Models Under Data Corruption},
   author={Sasi, Akshay},
   journal={arXiv preprint arXiv:XXXX.XXXXX},
   year={2026}
