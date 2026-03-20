@@ -18,6 +18,8 @@
 \usepackage{hyperref}
 \usepackage{url}
 \usepackage{stfloats}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds, calc}
 
 \hypersetup{
     colorlinks=true,
@@ -108,8 +110,109 @@ We study alignment degradation as a function of data corruption ratio $\rho \in 
 
 \begin{figure}[htbp]
     \centering
-    \fbox{\parbox{0.95\columnwidth}{\centering\vspace{0.3em}\textit{[Architecture / Pipeline diagram - to be inserted]}\vspace{0.3em}}}
-    \caption{Experimental pipeline. Clean data from Stanford Alpaca (5K samples) is mixed with corrupted data at ratio $\rho$. Each mixture trains an independent LoRA adapter on \model{}. All models are evaluated across four dimensions: alignment, capability, drift, and geometry. Recovery models are produced by merging corrupted LoRA weights and training a fresh adapter on 2.5K clean samples.}
+    \resizebox{\columnwidth}{!}{%
+    \begin{tikzpicture}[
+        node distance=0.4cm and 0.3cm,
+        box/.style={rectangle, rounded corners=2pt, draw=#1!60, fill=#1!8,
+            minimum width=2.2cm, minimum height=0.7cm, align=center,
+            font=\scriptsize, line width=0.4pt},
+        smallbox/.style={rectangle, rounded corners=1pt, draw=#1!60, fill=#1!12,
+            minimum width=1.0cm, minimum height=0.4cm, align=center,
+            font=\tiny, line width=0.3pt},
+        evalbox/.style={rectangle, rounded corners=2pt, draw=#1!60, fill=#1!8,
+            minimum width=1.8cm, minimum height=1.4cm, align=center,
+            font=\tiny, line width=0.4pt},
+        arr/.style={-{Stealth[length=2pt]}, line width=0.4pt, gray!70},
+        lbl/.style={font=\tiny\itshape, gray!60},
+    ]
+
+    % === ROW 1: Data Sources ===
+    \node[box=blue] (clean) {\textbf{Clean Dataset}\\Alpaca (5K)};
+    \node[box=red, right=0.8cm of clean] (corrupt) {\textbf{Corruption}\\Generator};
+
+    % Corruption type labels
+    \node[smallbox=red, above right=-0.08cm and -0.15cm of corrupt.south east] (c1) {Toxic};
+    \node[smallbox=red, right=0.08cm of c1] (c2) {Misinfo};
+    \node[smallbox=red, right=0.08cm of c2] (c3) {Noise};
+    \node[smallbox=red, right=0.08cm of c3] (c4) {Slang};
+
+    % === ROW 2: Mixing ===
+    \node[box=violet, below=0.8cm of $(clean.south)!0.5!(corrupt.south)$] (mix) {
+        \textbf{Data Mixing}\\
+        $\rho \in \{0, 0.10, \ldots, 1.0\}$
+    };
+
+    \draw[arr] (clean.south) -- ++(0,-0.25) -| (mix.north west);
+    \draw[arr] (corrupt.south) -- ++(0,-0.25) -| (mix.north east);
+
+    % === ROW 3: Training ===
+    \node[box=yellow!80!orange, below=0.5cm of mix] (train) {
+        \textbf{LoRA Fine-Tuning}\\
+        GPT-2 Medium (355M)\\
+        $r{=}16$, $\alpha{=}16$
+    };
+
+    \draw[arr] (mix) -- node[lbl, right, xshift=1pt] {mixed data} (train);
+
+    % === Model variants fan-out ===
+    \foreach \r/\x in {0\%/-1.6, 25\%/-0.8, 50\%/0, 75\%/0.8, 100\%/1.6} {
+        \node[smallbox=yellow!80!orange, below=0.5cm of train, xshift=\x cm] (m\x) {$\rho{=}$\r};
+    }
+    \foreach \x in {-1.6,-0.8,0,0.8,1.6} {
+        \draw[arr] (train.south) -- (m\x.north);
+    }
+
+    % === ROW 4: Evaluation (4 boxes) ===
+    \node[evalbox=green!70!black, below=0.9cm of m-1.6, xshift=0.1cm] (eval1) {
+        \textbf{Alignment}\\[1pt]
+        Toxicity\\Refusal Rate\\Adherence
+    };
+    \node[evalbox=blue, right=0.15cm of eval1] (eval2) {
+        \textbf{Capability}\\[1pt]
+        Perplexity\\Next-token\\Coherence
+    };
+    \node[evalbox=violet, right=0.15cm of eval2] (eval3) {
+        \textbf{Drift}\\[1pt]
+        KL Divergence\\Top-$k$ logits\\($k{=}100$)
+    };
+    \node[evalbox=orange, right=0.15cm of eval3] (eval4) {
+        \textbf{Geometry}\\[1pt]
+        CKA\\Cosine sim.\\Clustering
+    };
+
+    % Arrows from models to eval
+    \coordinate (evalcenter) at ($(eval1.north)!0.5!(eval4.north)$);
+    \foreach \x in {-1.6,-0.8,0,0.8,1.6} {
+        \draw[arr, gray!40] (m\x.south) -- ++(0,-0.3) -- (evalcenter |- 0,0 |- m\x.south) ++(0,-0.3) -- ++(0,0);
+    }
+    % Simplified: single bracket arrow
+    \draw[arr, gray!50] ($(m-1.6.south)+(0,-0.35)$) -- ($(m1.6.south)+(0,-0.35)$);
+    \draw[arr] ($(evalcenter)+(0,0.55)$) -- ($(evalcenter)+(0,0.15)$);
+    \foreach \e in {eval1, eval2, eval3, eval4} {
+        \draw[arr, gray!40] ($(evalcenter)+(0,0.15)$) -- (\e.north);
+    }
+
+    % === Recovery branch (side) ===
+    \node[box=red!70!black, right=0.3cm of eval4, yshift=0.8cm] (recov) {
+        \textbf{Recovery}\\
+        Merge + fresh LoRA\\
+        2.5K clean samples
+    };
+
+    \draw[arr, dashed] (m1.6.east) -- ++(0.3,0) |- (recov.west);
+    \draw[arr, dashed] (recov.south) -- ++(0,-0.35) -| (eval4.east);
+
+    % === Findings box ===
+    \node[box=gray, below=0.5cm of $(eval2.south)!0.5!(eval3.south)$, minimum width=5cm] (findings) {
+        \textbf{Key Findings:} Non-linear degradation \,$\cdot$\, Drift-alignment decoupling \,$\cdot$\, Corruption hierarchy \,$\cdot$\, Third-state recovery
+    };
+
+    \draw[arr] (eval1.south) -- ++(0,-0.15) -| (findings.north west);
+    \draw[arr] (eval4.south) -- ++(0,-0.15) -| (findings.north east);
+
+    \end{tikzpicture}%
+    }
+    \caption{Experimental pipeline. Clean data (5K Alpaca samples) is mixed with corrupted data at ratio $\rho$. Each mixture trains an independent LoRA adapter on GPT-2 Medium. All 18 models are evaluated across four dimensions. High-corruption toxic models undergo recovery training (dashed path).}
     \label{fig:pipeline}
 \end{figure}
 
