@@ -103,6 +103,12 @@ def train_model(
 
     args = TrainingArguments(
         output_dir=output_dir,
+        # Seed Trainer explicitly so different experiment seeds produce
+        # genuinely different training runs (data order, LoRA init, dropout).
+        # Without this, TrainingArguments defaults to seed=42 regardless of
+        # config["experiment"]["seed"], collapsing all "seeds" to one run.
+        seed=training_config.get("seed", 42),
+        data_seed=training_config.get("seed", 42),
         num_train_epochs=training_config["num_epochs"],
         per_device_train_batch_size=training_config["per_device_batch_size"],
         gradient_accumulation_steps=training_config["gradient_accumulation_steps"],

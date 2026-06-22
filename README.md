@@ -158,6 +158,34 @@ python src/run_experiment.py --step plot
 python src/run_experiment.py --step summary
 ```
 
+### Multi-seed runs (statistical rigor)
+
+The single-run confidence intervals reported by `statistics.py` are
+bootstrap-over-prompts: they capture evaluation sampling noise within one
+trained model, **not** training stochasticity. To report results across
+independent training runs (different data order, LoRA initialization, dropout),
+run the multi-seed driver:
+
+```bash
+# Run the full pipeline for each seed (outputs/seed_<seed>/...) then aggregate
+python -m src.run_multiseed --config config/config.yaml --seeds 42 123 456 789 1024
+
+# Re-aggregate existing seed outputs without retraining
+python -m src.run_multiseed --aggregate-only
+```
+
+Aggregated across-seed statistics (mean ± std ± 95% CI using the Student-t
+critical value, correct for small *n*) are written to:
+
+```
+outputs/aggregated/
+├── seed_metrics.json    # full nested structure
+├── seed_metrics.csv     # flat table, one row per (condition, metric)
+└── main_results.tex     # LaTeX table fragment (mean ± CI) for the paper
+```
+
+Each seed is independent and resumable — completed seeds are skipped on restart.
+
 ## Project Structure
 
 ```
